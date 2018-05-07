@@ -22,14 +22,24 @@ app.use((request, response, next) => {
 
 //========================ROUTES=========================
 
+//route to the root (nice pun)
 app.get('/', (req, res) => {
  
   res.send('OK')
 })
 
+// route to the music list
 app.get('/musics', (req, res) => {
  
   res.json(musics)
+})
+// route to the detailed music selected 
+
+app.get('/musics/:id', (req, res) => {
+  const id = Number(req.params.id) //get the music ID via the params method from the request (converted in number because is a string by default)  
+  const music = musics.find(music => music.id === id) // search the music ID and compared it with ID's the array "musics" to find the right one
+  console.log(id, music)
+  res.json(music) // if the corresponding ID is found in the array, display the right music
 })
 
 app.listen(8080, () => console.log('server init'))
