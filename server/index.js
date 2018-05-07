@@ -1,15 +1,19 @@
 //========================MODULES========================
 
 const express = require('express')
-const music1 = require('./mocks/musics/music-1.json')
-const music2 = require('./mocks/musics/music-2.json')
-const music3 = require('./mocks/musics/music-3.json')
+const fs = require('fs')
+const path = require('path')
 
-const musics = [
-  music1, 
-  music2,
-  music3
-]
+
+// const music1 = require('./mocks/musics/music-1.json')
+// const music2 = require('./mocks/musics/music-2.json')
+// const music3 = require('./mocks/musics/music-3.json')
+
+// const musics = [
+//   music1, 
+//   music2,
+//   music3
+// ]
 
 const app = express()
 
@@ -36,10 +40,20 @@ app.get('/musics', (req, res) => {
 // route to the detailed music selected 
 
 app.get('/musics/:id', (req, res) => {
-  const id = Number(req.params.id) //get the music ID via the params method from the request (converted in number because is a string by default)  
-  const music = musics.find(music => music.id === id) // search the music ID and compared it with ID's the array "musics" to find the right one
-  console.log(id, music)
-  res.json(music) // if the corresponding ID is found in the array, display the right music
+ const filename = `music-${req.params.id}.json` // getting the name of the file, allowed to the id typped b the user 
+ const filepath = path.join(__dirname, '/mocks/musics/', filename) // joining __dirname (which is the path to the current folder : /home/smain/Bureau/chilly_mood_project/server) with the filename
+
+ fs.readFile(filepath, (err, data) => { //method used to read a file, use the filepath created above
+  if(err) {
+    return res.status(404).end('music not found') // Important : beware about handling the error case
+  }
+  res.header('Content-Type', 'application/json; charset=utf-8') //converting the data (currently at Buffer format) into JSON
+  console.log(data)
+  res.end(data)
+  })
 })
 
-app.listen(8080, () => console.log('server init'))
+app.listen(8080, () => console.log('8080 in da place *w*'))
+
+
+
