@@ -4,3 +4,8 @@
   border: 1px solid yellow;
   margin-top: 15px;
 }
+
+a {
+  color: yellow;
+  text-decoration: none;
+}

@@ -1,8 +1,8 @@
 // Function displaying musics informations
 export const displayMusics = (music) => { 
-  return`
+  return `
     <div class = "music">
-      <a href='/music.html?id=${music.id}'><h1>${music.title}</h1></a>
+      <a href='/musicDetail.html?id=${music.id}'><h1>${music.title}</h1></a>
       <h2>${music.artist}</h2>
       <p>${music.release}</p>
     </div> 
