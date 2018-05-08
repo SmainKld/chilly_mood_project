@@ -2,18 +2,12 @@
 
 const express = require('express')
 const fs = require('fs')
+const util = require ('util')
 const path = require('path')
 
 
-// const music1 = require('./mocks/musics/music-1.json')
-// const music2 = require('./mocks/musics/music-2.json')
-// const music3 = require('./mocks/musics/music-3.json')
-
-// const musics = [
-//   music1, 
-//   music2,
-//   music3
-// ]
+const readFile = util.promisify(fs.readFile) //convert functions into promises thanks to promisify  
+const readdir = util.promisify(fs.readdir)
 
 const app = express()
 
@@ -34,26 +28,41 @@ app.get('/', (req, res) => {
 
 // route to the music list
 app.get('/musics', (req, res) => {
- 
-  res.json(musics)
+  const musicsDir = path.join(__dirname, '/mocks/musics/') 
+  readdir(musicsDir) // read the current folder (where index.js is located) 
+  .then (files => {
+    const filepaths = files.map(file => path.join(musicsDir, file)) //show the complete path leading to each mock file   
+    const allFiles = filepaths.map(filepath => {  // for each path generated above, read the value of the path in the UTF8 format (instead of Buffer)
+      return readFile(filepath, 'utf8')
+    })
+
+  Promise.all(allFiles) //takes the array of promises generated above and converts it into an array the promises' values
+  .then(allFilesValues => {
+    const valuesInJson = allFilesValues.map(JSON.parse)
+    res.json(valuesInJson)
+  })
+  .catch(err => {
+    res.status(500).end(err.message)
+    })  
+  })
 })
+
+
 // route to the detailed music selected 
 
 app.get('/musics/:id', (req, res) => {
  const filename = `music-${req.params.id}.json` // getting the name of the file, allowed to the id typped b the user 
  const filepath = path.join(__dirname, '/mocks/musics/', filename) // joining __dirname (which is the path to the current folder : /home/smain/Bureau/chilly_mood_project/server) with the filename
 
- fs.readFile(filepath, (err, data) => { //method used to read a file, use the filepath created above
-  if(err) {
+ readFile(filepath) //method used to read a file, use the filepath created above
+  .then(data => {
+    res.header('Content-Type', 'application/json; charset=utf-8') //converting the data (currently at Buffer format) into JSON
+    res.end(data)    
+  })
+
+  .catch(err => {
     return res.status(404).end('music not found') // Important : beware about handling the error case
-  }
-  res.header('Content-Type', 'application/json; charset=utf-8') //converting the data (currently at Buffer format) into JSON
-  console.log(data)
-  res.end(data)
   })
 })
 
 app.listen(8080, () => console.log('8080 in da place *w*'))
-
-
-
