@@ -6,6 +6,15 @@ const id = params.get('id') // getting the wanted params, available thanks to th
 fetch(`http://localhost:8080/musics/${id}`) // fetching the URL with the ID typed by a user
   .then(response => response.json()) 
   .then(music => {
-    const musicElement = document.getElementById('music')
-    musicElement.innerHTML = musicDetailed(music)
+    const musicElement = document.getElementById('music') 
+    musicElement.innerHTML = musicDetailed(music) // injection in HTML
+
+    document.getElementById('deleteThisFuckingMusic').addEventListener('click', event => { //getting the id 'deleteThisFuckingMusic' defined on the form of addMusic.html
+      event.preventDefault() // preventing from loading the datas at each send request 
+      fetch(`http://localhost:8080/musics/${id}`, {
+        method: 'delete', // defining the method to apply 
+      })
+
+    })
   }) 
+

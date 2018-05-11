@@ -4,41 +4,54 @@ const express = require('express')
 const fs = require('fs')
 const util = require ('util')
 const path = require('path')
+const multer = require('multer')
 
-const writeFile = util.promisify(fs.writeFile) 
-
-const readFile = util.promisify(fs.readFile) //convert functions into promises thanks to promisify 
-const unlinkFile = util.promisify(fs.unlink) //convert functions into promises thanks to promisify
-
+//========================PROMISES========================
+const writeFile = util.promisify(fs.writeFile) //convert functions into promises thanks to promisify  
+const readFile = util.promisify(fs.readFile)  //convert functions into promises thanks to promisify 
+const unlinkFile = util.promisify(fs.unlink)  //convert functions into promises thanks to promisify
 const readdir = util.promisify(fs.readdir)
 
 const app = express()
 
+//========================MIDDLEWARES========================
 app.use((request, response, next) => {
   response.header('Access-Control-Allow-Origin', '*')
   response.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
+  response.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE')
   next() // end the action of the current middleware and tell to switch to the next middleware
 })
 
-app.use((req, res, next) => {
+ app.use((req, res, next) => {
+   if (req.method  === 'GET') return next() // check if the request is a GET or not, go to next middleware if it's the case
+   if (req.method  === 'OPTIONS') return next()
+   if (req.method  === 'DELETE') return next()
+    let accumulator = ''  //accumulate all the data sent by the user in once (useful when heavy data is sent, such as videos or images) 
 
-    if (req.method  === 'GET') return next() // check if the request is a GET or not, go to next middleware if it's the case
-    if (req.method  === 'DELETE') return next()
-   let accumulator = ''  //accumulate all the data sent by the user in once (useful when heavy data is sent, such as videos or images) 
+    req.on('data', data => {
+       accumulator += data
+    })
 
-   req.on('data', data => {
-      accumulator += data
+    req.on('end', () => {
+     try { // check if there's an error in the data typped by the user
+       req.body = JSON.parse(accumulator) //parse allows us to turn the data sent by the users (a string by default) into a Javascript object 
+       next() // goes to the next middleware
+     } catch (err) {
+     next(err) // stops here instead of switching to the next middleware  
+     }
    })
+ })
 
-   req.on('end', () => {
-    try { // check if there's an error in the data typped by the user
-      req.body = JSON.parse(accumulator) //parse allows us to turn the data sent by the users (a string by default) into a Javascript object 
-      next() // goes to the next middleware
-    } catch (err) {
-    next(err) // stops here instead of switching to the next middleware  
-    }
-  })
+const publicImagesPath = path.join(__dirname, 'public/images') // defining the path where files will be stored 
+
+const storage = multer.diskStorage({ //choosing to store on disk 
+  destination: publicImagesPath, //specifying where the files will be stored 
+  filename: (req, file, cb) => { 
+    cb(null, file.originalname) //keeping the original name of the file 
+  }
 })
+
+const upload = multer({ storage: storage }) // upload middleware
 
 //========================ROUTES=========================
 
@@ -69,7 +82,7 @@ app.get('/musics', (req, res) => {
   })
 })
 
-  app.post('/musics', (req, res, next) => {
+  app.post('/musics', upload.single('image'), (req, res, next) => { // calling the "upload" middleware created above and using 'single' because only one file
    const id = Math.random().toString(9).slice(2, 11).padEnd(11, '0') // generating a random ID of 11 integers
    const filename = `${id}.json` // defining the format of the searched file  
    const filepath = path.join(__dirname, '/mocks/musics/', filename) 
@@ -84,7 +97,7 @@ app.get('/musics', (req, res) => {
     release: req.body.release,
     createdAt: Date.now()
    }
-
+   console.log(req.file)
    writeFile(filepath, JSON.stringify(content), 'utf8') 
    .then(() => res.json('OK')) // if everything's alright, response in JSON
    .catch(next) // if there's an error, go to the next middleware
@@ -93,43 +106,29 @@ app.get('/musics', (req, res) => {
 
 // route to delete a music
 
-const remove = (arr, index) => arr.slice(0, index).concat(arr.slice(index+1)) // function removing an element from an array thanks to its index 
-
-app.delete('/musics/:id', (req, res) => {
-  const musicsDir = path.join(__dirname, '/mocks/musics/') 
-  readdir(musicsDir) // read the current folder (where index.js is located) 
-  .then(files => {
-      console.log(files)
-         const slicedFilePath = files.map(sliced => sliced.slice(0, 11))
-         console.log(slicedFilePath)
-         const id = Number(req.params.id) // reading the id of the query string and converts it into a number 
-         console.log(id)
-         for (elem of slicedFilePath) {
-           if(elem === id) {
-            const elemName = elem.json // defining the format of the searched file 
-            console.log(elemName) 
-            const elemPath = path.join(__dirname, '/mocks/musics/', elemName)
-            console.log(elemPath)
-            
-             return unlinkfile(elemPath) // comparing and returning the index of the first ID corresponding to the one in the query string of the page
-           }
-         }
-      
-    // const allFiles = filepaths.map(filepath => {  
-    //    return unlinkFile(filepath, 'utf8') // for each path generated above, delete the file which has the same ID as the one of the query string   
-    // res.json(files)
-        res.send('DELETED')
-    })
-
-  // Promise.all(allFiles) //takes the array of promises generated above and converts it into an array the promises' values
-  // .then(allFilesValues => {
-  //   const valuesInJson = allFilesValues.map(JSON.parse)
-  //   res.json(valuesInJson)
-  // })
-  // .catch(err => {
-  //   res.status(500).end(err.message)
-  //   })  
+ app.delete('/musics/:id', (req, res, next) => {
+   const musicsDir = path.join(__dirname, '/mocks/musics/') 
+   readdir(musicsDir) // read the current folder (where index.js is located) 
+   .then(files => {
+      console.log({files})
+      const slicedFilePath = files.map(sliced => sliced.slice(0, 11)) //slicing the path to keep the ID and remove the ".json"
+      console.log({slicedFilePath})
+      const id = Number(req.params.id) // reading the id of the query string and converts it into a number 
+      console.log({id})
+      for (elem of slicedFilePath) { 
+        if (elem == id) {
+          const elemName = elem + '.json' // defining the format of the searched file 
+          console.log({elemName}) 
+          const elemPath = path.join(__dirname, '/mocks/musics/', elemName) // getting the entire path of the file to delete
+          console.log({elemPath})
+        
+          return unlinkFile(elemPath) // comparing and returning the index of the first ID corresponding to the one in the query string of the page
+        }
+      }
    })
+   .then(() => res.send('DELETED'))
+   .catch(next)  
+ })
 
 
 
